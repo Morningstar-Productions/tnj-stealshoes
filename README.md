@@ -10,10 +10,21 @@ This project does not contain a license, therefore you are not allowed to add on
 or weaponName == "weapon_shoe"
 ```
 
-### qb-weapons/client/main.lua add the following around line 163:
+### qb-weapons/config.lua under Config.Throwables
 ```lua
-elseif QBCore.Shared.Weapons[weapon]["name"] == "weapon_shoe" then
-    TriggerServerEvent('QBCore:Server:RemoveItem', "weapon_shoe", 1)
+    Config.Throwables = {
+        "ball",
+        "bzgas",
+        "flare",
+        "grenade",
+        "molotov",
+        "pipebomb",
+        "proxmine",
+        "smokegrenade",
+        "snowball",
+        "stickybomb",
+        "shoe", -- Add this line
+    }
 ```
 
 ### qb-core/shared/items.lua

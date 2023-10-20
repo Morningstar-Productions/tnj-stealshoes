@@ -1,64 +1,85 @@
-local QBCore = exports['qb-core']:GetCoreObject()
+local qbCore = exports['qb-core']:GetCoreObject()
+local shoeid = nil
 
-RegisterCommand("stealshoes", function()
-    TriggerEvent('tnj-stealshoes:client:TheftShoe')
-end)
+---@param playerId number
+local function isTargetDead(playerId)
+    return lib.callback.await('tnj-stealshoes:server:isPlayerDead', false, playerId)
+end
+
+---@param player number
+---@param distance number
+---@param maxDistance? number
+---@return boolean
+local function isPlayerTooFar(player, distance, maxDistance)
+    if not player or distance >= (maxDistance or 2.5) then
+        return true
+    end
+    return false
+end
+
+local function PlayerCloseMenu()
+    local player, distance = qbCore.Functions.GetClosestPlayer()
+    local playerPed = GetPlayerPed(player)
+    local playerId = GetPlayerServerId(player)
+    if not isPlayerTooFar(player, distance) then
+        if IsEntityPlayingAnim(playerPed, "missminuteman_1ig_2", "handsup_base", 3) or IsEntityPlayingAnim(playerPed, "mp_arresting", "idle", 3) or isTargetDead(playerId) then
+
+            if shoeid then return end
+            shoeid = exports['qb-radialmenu']:AddOption({
+                id = 'stealshoes',
+                title = "Steal Shoes",
+                icon = "shoe-prints",
+                type = "client",
+                event = "tnj-stealshoes:client:TheftShoe",
+                shouldClose = true,
+            }, shoeid)
+        end
+    else
+        if shoeid then
+            exports['qb-radialmenu']:RemoveOption(shoeid)
+            shoeid = nil
+        end
+    end
+end
+
+RegisterNetEvent('qb-radialmenu:client:onRadialmenuOpen', PlayerCloseMenu)
 
 RegisterNetEvent('tnj-stealshoes:client:TheftShoe', function() -- This could be used in the radialmenu ;)
-    local ped = PlayerPedId()
-    if not IsPedRagdoll(ped) then
-        local player, distance = QBCore.Functions.GetClosestPlayer()
-        if player ~= -1 and distance < 1.5 then
+    if not IsPedRagdoll(cache.ped) then
+        local player, distance = qbCore.Functions.GetClosestPlayer()
+        if player and distance < 1.5 then
             local playerId = GetPlayerServerId(player)
             if not IsPedInAnyVehicle(GetPlayerPed(player)) and not IsPedInAnyVehicle(ped) then
                 local oped = GetPlayerPed(player)
                 local hasShoes = GetPedDrawableVariation(oped, 6)
                 if hasShoes ~= 34 then
-                    while not HasAnimDictLoaded("random@domestic") do
-                        RequestAnimDict("random@domestic")
-                        Wait(1)
-                    end
-                    TaskPlayAnim(ped, "random@domestic", "pickup_low", 8.00, -8.00, 500, 0, 0.00, 0, 0, 0)
+                    lib.requestAnimDict("random@domestic")
+                    TaskPlayAnim(cache.ped, "random@domestic", "pickup_low", 8.00, -8.00, 500, 0, 0.00, 0, 0, 0)
                     TriggerServerEvent("tnj-stealshoes:server:TheftShoe", playerId)
                     SetPedComponentVariation(oped, 6, 34, 0, 2)
                 else
-                    QBCore.Functions.Notify("No shoes to been stolen!", "error")
+                    qbCore.Functions.Notify("No shoes to been stolen!", "error")
                 end
             else
-                QBCore.Functions.Notify('You can\'t steal shoes in vehicle', "error")
+                qbCore.Functions.Notify('You can\'t steal shoes in vehicle', "error")
             end
         else
-            QBCore.Functions.Notify('No one nearby!', "error")
+            qbCore.Functions.Notify('No one nearby!', "error")
         end
     end
 end)
 
 RegisterNetEvent('tnj-stealshoes:client:StoleShoe', function(playerId)
-    local ped = PlayerPedId()
-    local hasShoes = GetPedDrawableVariation(ped, 6)
+    local hasShoes = GetPedDrawableVariation(cache.ped, 6)
     if hasShoes ~= 34 then
-        if GetEntityModel(PlayerPedId()) == `mp_m_freemode_01`  then
-            SetPedComponentVariation(ped, 6, 34, 0, 2)
-        elseif GetEntityModel(PlayerPedId()) == `mp_f_freemode_01`  then
-            SetPedComponentVariation(ped, 6, 34, 0, 2)
+        if GetEntityModel(cache.ped) == `mp_m_freemode_01`  then
+            SetPedComponentVariation(cache.ped, 6, 34, 0, 2)
+        elseif GetEntityModel(cache.ped) == `mp_f_freemode_01`  then
+            SetPedComponentVariation(cache.ped, 6, 34, 0, 2)
         end
-        QBCore.Functions.Notify("Shoes got robbed lmao", 'primary')
+        qbCore.Functions.Notify("Shoes got robbed lmao", 'primary')
         TriggerServerEvent("tnj-stealshoes:server:Complete", playerId)
     else
-        QBCore.Functions.Notify("Someone tried to steal yo feet", 'primary')
+        qbCore.Functions.Notify("Someone tried to steal yo feet", 'primary')
     end
 end)
-
-if Config.QBTarget then
-    exports['qb-target']:AddGlobalPlayer {
-        options = {
-            {
-                type = "command",
-                event = "stealshoes",
-                icon = "fas fa-hands",
-                label = "Steel Shoes",
-            }
-        },
-        distance = 2.5,
-    }
-end
